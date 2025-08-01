@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Bubble Shooter Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 800px;
+            max-height: 600px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.3), transparent);
+            pointer-events: none;
+        }
+
+        .score-display {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            pointer-events: all;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .game-over h2 {
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+
+        .game-over p {
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        .next-bubble {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 3px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .trajectory-line {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        @media (max-width: 768px) {
+            .game-container {
+                width: 100vw;
+                height: 100vh;
+                border-radius: 0;
+            }
+
+            .ui-overlay {
+                padding: 10px;
+            }
+
+            .score-display {
+                font-size: 20px;
+            }
+
+            .btn {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+        }
+
+        @keyframes bubble-pop {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.7; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        @keyframes bubble-fall {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(100px); opacity: 0; }
+        }
+
+        .bubble-pop {
+            animation: bubble-pop 0.3s ease-out forwards;
+        }
+
+        .bubble-fall {
+            animation: bubble-fall 0.5s ease-in forwards;
+        }
+
+        .typewriter {
+            overflow: hidden;
+            border-right: 2px solid rgba(255,255,255,0.75);
+            white-space: nowrap;
+            animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
+        }
+
+        .typewriter-fast {
+            animation: typing-fast 1.5s steps(40, end), blink-caret 0.75s step-end infinite;
+        }
+
+        @keyframes typing {
+            from { width: 0 }
+            to { width: 100% }
+        }
+
+        @keyframes typing-fast {
+            from { width: 0 }
+            to { width: 100% }
+        }
+
+        @keyframes blink-caret {
+            from, to { border-color: transparent }
+            50% { border-color: rgba(255,255,255,0.75) }
+        }
+
+        .fade-in-text {
+            opacity: 0;
+            animation: fadeInText 2s ease-in forwards;
+        }
+
+        @keyframes fadeInText {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .score-display {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+
+        .score-update {
+            animation: scoreUpdate 0.6s ease-out;
+        }
+
+        @keyframes scoreUpdate {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); color: #FFD700; }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div class="ui-overlay">
+            <div class="score-display">
+                <div class="typewriter">Score: <span id="score">0</span></div>
+                <div class="fade-in-text">High Score: <span id="highScore">0</span></div>
+            </div>
+            <div class="controls">
+                <button class="btn" id="musicBtn">🎵</button>
+                <button class="btn" id="restartBtn">Restart</button>
+            </div>
+        </div>
+
+        <div class="next-bubble" id="nextBubble"></div>
+
+        <div class="welcome-message" id="welcomeMessage" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 30px; border-radius: 15px; text-align: center; display: block; z-index: 100;">
+            <h2 class="typewriter" style="margin-bottom: 20px; border-right: 2px solid white; display: inline-block;">Welcome to Bubble Shooter!</h2>
+            <p class="fade-in-text" style="margin-bottom: 15px;">Aim and shoot bubbles to match 3 or more of the same color</p>
+            <p class="fade-in-text" style="margin-bottom: 20px;">Click or tap to shoot • Drag to aim on mobile</p>
+            <button class="btn" onclick="game.hideWelcome()" style="animation-delay: 3s;">Start Playing</button>
+        </div>
+
+        <div class="game-over" id="gameOver">
+            <h2 class="typewriter-fast">Game Over!</h2>
+            <p class="fade-in-text">Final Score: <span id="finalScore">0</span></p>
+            <p class="fade-in-text">High Score: <span id="finalHighScore">0</span></p>
+            <button class="btn" onclick="game.restart()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // Game constants
+        const BUBBLE_RADIUS = 20;
+        const BUBBLE_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+        const GRID_ROWS = 12;
+        const GRID_COLS = 15;
+        const SHOOT_SPEED = 8;
+        const GRAVITY_DELAY = 300;
+
+        class BubbleShooter {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.score = 0;
+                this.highScore = parseInt(localStorage.getItem('bubbleShooterHighScore') || '0');
+                this.gameRunning = false; // Start paused for welcome screen
+                this.musicEnabled = true;
+                this.welcomeShown = true;
+                
+                this.setupCanvas();
+                this.initializeGame();
+                this.setupEventListeners();
+                this.setupAudio();
+                this.gameLoop();
+                
+                this.updateUI();
+                this.showWelcomeMessage();
+            }
+
+            showWelcomeMessage() {
+                const welcomeEl = document.getElementById('welcomeMessage');
+                welcomeEl.style.display = 'block';
+                
+                // Auto-hide welcome after 8 seconds
+                setTimeout(() => {
+                    if (this.welcomeShown) {
+                        this.hideWelcome();
+                    }
+                }, 8000);
+            }
+
+            hideWelcome() {
+                const welcomeEl = document.getElementById('welcomeMessage');
+                welcomeEl.style.display = 'none';
+                this.welcomeShown = false;
+                this.gameRunning = true;
+                
+                // Show typed "Good luck!" message
+                this.showFloatingMessage("Good luck! Aim for 3+ matching bubbles!");
+            }
+
+            showFloatingMessage(text) {
+                const messageEl = document.createElement('div');
+                messageEl.style.cssText = `
+                    position: absolute;
+                    top: 30%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(255,255,255,0.9);
+                    color: #333;
+                    padding: 15px 25px;
+                    border-radius: 25px;
+                    font-weight: bold;
+                    z-index: 50;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                `;
+                
+                this.canvas.parentElement.appendChild(messageEl);
+                
+                // Type out the message
+                let i = 0;
+                const typeInterval = setInterval(() => {
+                    if (i < text.length) {
+                        messageEl.textContent += text.charAt(i);
+                        i++;
+                    } else {
+                        clearInterval(typeInterval);
+                        setTimeout(() => {
+                            messageEl.style.transition = 'opacity 1s ease-out';
+                            messageEl.style.opacity = '0';
+                            setTimeout(() => messageEl.remove(), 1000);
+                        }, 2000);
+                    }
+                }, 60 + Math.random() * 40);
+            }
+
+            setupCanvas() {
+                const container = this.canvas.parentElement;
+                this.canvas.width = container.clientWidth;
+                this.canvas.height = container.clientHeight;
+                
+                // Calculate grid positioning
+                this.gridStartX = (this.canvas.width - (GRID_COLS * BUBBLE_RADIUS * 2)) / 2;
+                this.gridStartY = 50;
+                this.shooterY = this.canvas.height - 100;
+                this.shooterX = this.canvas.width / 2;
+            }
+
+            setupAudio() {
+                this.sounds = {
+                    shoot: new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmAcCDWNzP'),
+                    pop: new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmAcCDWNzP'),
+                    background: new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmAcCDWNzP')
+                };
+                
+                // Set volumes
+                this.sounds.shoot.volume = 0.3;
+                this.sounds.pop.volume = 0.4;
+                this.sounds.background.volume = 0.1;
+                this.sounds.background.loop = true;
+            }
+
+            initializeGame() {
+                this.grid = [];
+                this.shootingBubble = null;
+                this.nextBubbleColor = this.getRandomColor();
+                this.currentBubbleColor = this.getRandomColor();
+                this.trajectory = [];
+                this.isAiming = false;
+                this.touchStart = null;
+                
+                // Initialize grid with some bubbles
+                for (let row = 0; row < 6; row++) {
+                    this.grid[row] = [];
+                    const colsInRow = row % 2 === 0 ? GRID_COLS : GRID_COLS - 1;
+                    for (let col = 0; col < colsInRow; col++) {
+                        if (Math.random() < 0.7) {
+                            this.grid[row][col] = {
+                                color: this.getRandomColor(),
+                                x: this.getBubbleX(row, col),
+                                y: this.getBubbleY(row),
+                                row: row,
+                                col: col,
+                                falling: false
+                            };
+                        }
+                    }
+                }
+                
+                this.updateNextBubbleDisplay();
+            }
+
+            getRandomColor() {
+                return BUBBLE_COLORS[Math.floor(Math.random() * Math.min(5 + Math.floor(this.score / 1000), BUBBLE_COLORS.length))];
+            }
+
+            getBubbleX(row, col) {
+                const offsetX = row % 2 === 0 ? 0 : BUBBLE_RADIUS;
+                return this.gridStartX + col * (BUBBLE_RADIUS * 2) + BUBBLE_RADIUS + offsetX;
+            }
+
+            getBubbleY(row) {
+                return this.gridStartY + row * (BUBBLE_RADIUS * 1.7);
+            }
+
+            setupEventListeners() {
+                // Mouse events
+                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                this.canvas.addEventListener('click', (e) => this.handleClick(e));
+                
+                // Touch events for mobile
+                this.canvas.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
+                this.canvas.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
+                this.canvas.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: false });
+                
+                // Keyboard events
+                document.addEventListener('keydown', (e) => this.handleKeyDown(e));
+                
+                // UI buttons
+                document.getElementById('restartBtn').addEventListener('click', () => this.restart());
+                document.getElementById('musicBtn').addEventListener('click', () => this.toggleMusic());
+                
+                // Resize handling
+                window.addEventListener('resize', () => this.handleResize());
+            }
+
+            handleMouseMove(e) {
+                if (!this.gameRunning || this.shootingBubble) return;
+                
+                const rect = this.canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                this.updateTrajectory(mouseX, mouseY);
+            }
+
+            handleClick(e) {
+                if (!this.gameRunning || this.shootingBubble) return;
+                
+                const rect = this.canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                this.shootBubble(mouseX, mouseY);
+            }
+
+            handleTouchStart(e) {
+                e.preventDefault();
+                if (!this.gameRunning || this.shootingBubble) return;
+                
+                const touch = e.touches[0];
+                const rect = this.canvas.getBoundingClientRect();
+                this.touchStart = {
+                    x: touch.clientX - rect.left,
+                    y: touch.clientY - rect.top
+                };
+                this.isAiming = true;
+            }
+
+            handleTouchMove(e) {
+                e.preventDefault();
+                if (!this.gameRunning || this.shootingBubble || !this.isAiming) return;
+                
+                const touch = e.touches[0];
+                const rect = this.canvas.getBoundingClientRect();
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+                
+                this.updateTrajectory(touchX, touchY);
+            }
+
+            handleTouchEnd(e) {
+                e.preventDefault();
+                if (!this.gameRunning || this.shootingBubble || !this.isAiming) return;
+                
+                const touch = e.changedTouches[0];
+                const rect = this.canvas.getBoundingClientRect();
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+                
+                this.shootBubble(touchX, touchY);
+                this.isAiming = false;
+                this.touchStart = null;
+            }
+
+            handleKeyDown(e) {
+                if (!this.gameRunning) return;
+                
+                switch(e.key) {
+                    case ' ':
+                        e.preventDefault();
+                        if (!this.shootingBubble) {
+                            this.shootBubble(this.shooterX, this.shooterY - 100);
+                        }
+                        break;
+                    case 'r':
+                    case 'R':
+                        this.restart();
+                        break;
+                    case 'm':
+                    case 'M':
+                        this.toggleMusic();
+                        break;
+                }
+            }
+
+            handleResize() {
+                this.setupCanvas();
+            }
+
+            updateTrajectory(targetX, targetY) {
+                this.trajectory = [];
+                
+                const dx = targetX - this.shooterX;
+                const dy = targetY - this.shooterY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance === 0) return;
+                
+                const dirX = dx / distance;
+                const dirY = dy / distance;
+                
+                // Calculate trajectory points
+                let x = this.shooterX;
+                let y = this.shooterY;
+                let velX = dirX * SHOOT_SPEED;
+                let velY = dirY * SHOOT_SPEED;
+                
+                for (let i = 0; i < 100 && y > 0; i++) {
+                    this.trajectory.push({ x, y });
+                    
+                    x += velX;
+                    y += velY;
+                    
+                    // Wall bouncing
+                    if (x <= BUBBLE_RADIUS || x >= this.canvas.width - BUBBLE_RADIUS) {
+                        velX *= -1;
+                        x = Math.max(BUBBLE_RADIUS, Math.min(this.canvas.width - BUBBLE_RADIUS, x));
+                    }
+                }
+            }
+
+            shootBubble(targetX, targetY) {
+                if (this.shootingBubble) return;
+                
+                const dx = targetX - this.shooterX;
+                const dy = targetY - this.shooterY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance === 0 || dy >= 0) return;
+                
+                const dirX = dx / distance;
+                const dirY = dy / distance;
+                
+                this.shootingBubble = {
+                    x: this.shooterX,
+                    y: this.shooterY,
+                    velX: dirX * SHOOT_SPEED,
+                    velY: dirY * SHOOT_SPEED,
+                    color: this.currentBubbleColor,
+                    radius: BUBBLE_RADIUS
+                };
+                
+                this.currentBubbleColor = this.nextBubbleColor;
+                this.nextBubbleColor = this.getRandomColor();
+                this.updateNextBubbleDisplay();
+                
+                this.playSound('shoot');
+                this.trajectory = [];
+            }
+
+            updateShootingBubble() {
+                if (!this.shootingBubble) return;
+                
+                const bubble = this.shootingBubble;
+                
+                // Update position
+                bubble.x += bubble.velX;
+                bubble.y += bubble.velY;
+                
+                // Wall collision
+                if (bubble.x <= BUBBLE_RADIUS || bubble.x >= this.canvas.width - BUBBLE_RADIUS) {
+                    bubble.velX *= -1;
+                    bubble.x = Math.max(BUBBLE_RADIUS, Math.min(this.canvas.width - BUBBLE_RADIUS, bubble.x));
+                }
+                
+                // Check collision with grid bubbles
+                const collision = this.checkBubbleCollision(bubble);
+                if (collision) {
+                    this.attachBubble(bubble, collision);
+                    this.shootingBubble = null;
+                    return;
+                }
+                
+                // Check top boundary
+                if (bubble.y <= BUBBLE_RADIUS) {
+                    this.attachBubbleToTop(bubble);
+                    this.shootingBubble = null;
+                }
+            }
+
+            checkBubbleCollision(shootingBubble) {
+                for (let row = 0; row < this.grid.length; row++) {
+                    if (!this.grid[row]) continue;
+                    
+                    for (let col = 0; col < this.grid[row].length; col++) {
+                        const gridBubble = this.grid[row][col];
+                        if (!gridBubble || gridBubble.falling) continue;
+                        
+                        const dx = shootingBubble.x - gridBubble.x;
+                        const dy = shootingBubble.y - gridBubble.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance <= BUBBLE_RADIUS * 2) {
+                            return { row, col, bubble: gridBubble };
+                        }
+                    }
+                }
+                
+                return null;
+            }
+
+            attachBubble(shootingBubble, collision) {
+                const { row, col } = collision;
+                const attachmentPos = this.findAttachmentPosition(shootingBubble, row, col);
+                
+                if (attachmentPos) {
+                    this.grid[attachmentPos.row] = this.grid[attachmentPos.row] || [];
+                    this.grid[attachmentPos.row][attachmentPos.col] = {
+                        color: shootingBubble.color,
+                        x: this.getBubbleX(attachmentPos.row, attachmentPos.col),
+                        y: this.getBubbleY(attachmentPos.row),
+                        row: attachmentPos.row,
+                        col: attachmentPos.col,
+                        falling: false
+                    };
+                    
+                    this.processMatches(attachmentPos.row, attachmentPos.col);
+                }
+            }
+
+            attachBubbleToTop(shootingBubble) {
+                // Find the best column for attachment at the top
+                const col = Math.round((shootingBubble.x - this.gridStartX - BUBBLE_RADIUS) / (BUBBLE_RADIUS * 2));
+                const clampedCol = Math.max(0, Math.min(GRID_COLS - 1, col));
+                
+                this.grid[0] = this.grid[0] || [];
+                this.grid[0][clampedCol] = {
+                    color: shootingBubble.color,
+                    x: this.getBubbleX(0, clampedCol),
+                    y: this.getBubbleY(0),
+                    row: 0,
+                    col: clampedCol,
+                    falling: false
+                };
+                
+                this.processMatches(0, clampedCol);
+            }
+
+            findAttachmentPosition(shootingBubble, nearRow, nearCol) {
+                const positions = [
+                    { row: nearRow - 1, col: nearCol },
+                    { row: nearRow - 1, col: nearCol - 1 },
+                    { row: nearRow - 1, col: nearCol + 1 },
+                    { row: nearRow, col: nearCol - 1 },
+                    { row: nearRow, col: nearCol + 1 },
+                    { row: nearRow + 1, col: nearCol },
+                    { row: nearRow + 1, col: nearCol - 1 },
+                    { row: nearRow + 1, col: nearCol + 1 }
+                ];
+                
+                let bestPosition = null;
+                let minDistance = Infinity;
+                
+                for (const pos of positions) {
+                    if (pos.row < 0 || pos.row >= GRID_ROWS) continue;
+                    
+                    const maxCols = pos.row % 2 === 0 ? GRID_COLS : GRID_COLS - 1;
+                    if (pos.col < 0 || pos.col >= maxCols) continue;
+                    
+                    if (this.grid[pos.row] && this.grid[pos.row][pos.col]) continue;
+                    
+                    const bubbleX = this.getBubbleX(pos.row, pos.col);
+                    const bubbleY = this.getBubbleY(pos.row);
+                    const distance = Math.sqrt(
+                        Math.pow(shootingBubble.x - bubbleX, 2) + 
+                        Math.pow(shootingBubble.y - bubbleY, 2)
+                    );
+                    
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        bestPosition = pos;
+                    }
+                }
+                
+                return bestPosition;
+            }
+
+            processMatches(startRow, startCol) {
+                const matches = this.findMatches(startRow, startCol);
+                
+                if (matches.length >= 3) {
+                    const points = matches.length * 10;
+                    this.score += points;
+                    
+                    // Show typed point notification
+                    this.showPointsMessage(`+${points} points!`, this.getBubbleX(startRow, startCol), this.getBubbleY(startRow));
+                    
+                    // Show achievement messages for large matches
+                    if (matches.length >= 5) {
+                        this.showFloatingMessage("Amazing! Great shot!");
+                    } else if (matches.length >= 7) {
+                        this.showFloatingMessage("Incredible! You're on fire!");
+                    }
+                    
+                    this.removeMatches(matches);
+                    this.playSound('pop');
+                    
+                    // Check for floating bubbles after a delay
+                    setTimeout(() => {
+                        this.removeFloatingBubbles();
+                    }, GRAVITY_DELAY);
+                } else {
+                    this.checkGameOver();
+                }
+                
+                this.updateUI();
+            }
+
+            findMatches(startRow, startCol) {
+                const startBubble = this.grid[startRow] && this.grid[startRow][startCol];
+                if (!startBubble) return [];
+                
+                const visited = new Set();
+                const matches = [];
+                const queue = [{ row: startRow, col: startCol }];
+                
+                while (queue.length > 0) {
+                    const { row, col } = queue.shift();
+                    const key = `${row},${col}`;
+                    
+                    if (visited.has(key)) continue;
+                    visited.add(key);
+                    
+                    const bubble = this.grid[row] && this.grid[row][col];
+                    if (!bubble || bubble.color !== startBubble.color || bubble.falling) continue;
+                    
+                    matches.push({ row, col, bubble });
+                    
+                    // Add neighbors to queue
+                    const neighbors = this.getNeighbors(row, col);
+                    for (const neighbor of neighbors) {
+                        const neighborKey = `${neighbor.row},${neighbor.col}`;
+                        if (!visited.has(neighborKey)) {
+                            queue.push(neighbor);
+                        }
+                    }
+                }
+                
+                return matches;
+            }
+
+            getNeighbors(row, col) {
+                const neighbors = [];
+                const isEvenRow = row % 2 === 0;
+                
+                // Define neighbor offsets based on hexagonal grid
+                const offsets = isEvenRow ? [
+                    [-1, -1], [-1, 0], [0, -1], [0, 1], [1, -1], [1, 0]
+                ] : [
+                    [-1, 0], [-1, 1], [0, -1], [0, 1], [1, 0], [1, 1]
+                ];
+                
+                for (const [dr, dc] of offsets) {
+                    const newRow = row + dr;
+                    const newCol = col + dc;
+                    
+                    if (newRow >= 0 && newRow < GRID_ROWS) {
+                        const maxCols = newRow % 2 === 0 ? GRID_COLS : GRID_COLS - 1;
+                        if (newCol >= 0 && newCol < maxCols) {
+                            neighbors.push({ row: newRow, col: newCol });
+                        }
+                    }
+                }
+                
+                return neighbors;
+            }
+
+            removeMatches(matches) {
+                for (const match of matches) {
+                    if (this.grid[match.row]) {
+                        delete this.grid[match.row][match.col];
+                    }
+                }
+            }
+
+            removeFloatingBubbles() {
+                const connected = new Set();
+                
+                // Mark all bubbles connected to the top
+                for (let col = 0; col < GRID_COLS; col++) {
+                    if (this.grid[0] && this.grid[0][col] && !this.grid[0][col].falling) {
+                        this.markConnected(0, col, connected);
+                    }
+                }
+                
+                // Remove unconnected bubbles
+                const floatingBubbles = [];
+                for (let row = 0; row < this.grid.length; row++) {
+                    if (!this.grid[row]) continue;
+                    
+                    for (let col = 0; col < this.grid[row].length; col++) {
+                        const bubble = this.grid[row][col];
+                        if (bubble && !bubble.falling && !connected.has(`${row},${col}`)) {
+                            bubble.falling = true;
+                            floatingBubbles.push(bubble);
+                        }
+                    }
+                }
+                
+                if (floatingBubbles.length > 0) {
+                    this.score += floatingBubbles.length * 5;
+                    this.updateUI();
+                    
+                    // Remove floating bubbles after animation
+                    setTimeout(() => {
+                        for (let row = 0; row < this.grid.length; row++) {
+                            if (!this.grid[row]) continue;
+                            
+                            for (let col = 0; col < this.grid[row].length; col++) {
+                                const bubble = this.grid[row][col];
+                                if (bubble && bubble.falling) {
+                                    delete this.grid[row][col];
+                                }
+                            }
+                        }
+                    }, 500);
+                }
+            }
+
+            markConnected(row, col, connected) {
+                const key = `${row},${col}`;
+                if (connected.has(key)) return;
+                
+                const bubble = this.grid[row] && this.grid[row][col];
+                if (!bubble || bubble.falling) return;
+                
+                connected.add(key);
+                
+                const neighbors = this.getNeighbors(row, col);
+                for (const neighbor of neighbors) {
+                    this.markConnected(neighbor.row, neighbor.col, connected);
+                }
+            }
+
+            checkGameOver() {
+                // Check if bubbles have reached the bottom
+                const dangerLine = this.canvas.height - 150;
+                
+                for (let row = 0; row < this.grid.length; row++) {
+                    if (!this.grid[row]) continue;
+                    
+                    for (let col = 0; col < this.grid[row].length; col++) {
+                        const bubble = this.grid[row][col];
+                        if (bubble && !bubble.falling && bubble.y > dangerLine) {
+                            this.gameOver();
+                            return;
+                        }
+                    }
+                }
+                
+                // Check if grid is empty (win condition)
+                let hasBubbles = false;
+                for (let row = 0; row < this.grid.length; row++) {
+                    if (!this.grid[row]) continue;
+                    
+                    for (let col = 0; col < this.grid[row].length; col++) {
+                        if (this.grid[row][col] && !this.grid[row][col].falling) {
+                            hasBubbles = true;
+                            break;
+                        }
+                    }
+                    if (hasBubbles) break;
+                }
+                
+                if (!hasBubbles) {
+                    this.score += 1000; // Bonus for clearing all bubbles
+                    this.updateUI();
+                    this.addNewRow();
+                }
+            }
+
+            addNewRow() {
+                // Shift existing bubbles down
+                for (let row = this.grid.length - 1; row > 0; row--) {
+                    this.grid[row] = this.grid[row - 1] || [];
+                    
+                    // Update positions
+                    for (let col = 0; col < this.grid[row].length; col++) {
+                        const bubble = this.grid[row][col];
+                        if (bubble) {
+                            bubble.row = row;
+                            bubble.y = this.getBubbleY(row);
+                        }
+                    }
+                }
+                
+                // Add new row at top
+                this.grid[0] = [];
+                const colsInRow = GRID_COLS;
+                for (let col = 0; col < colsInRow; col++) {
+                    if (Math.random() < 0.6) {
+                        this.grid[0][col] = {
+                            color: this.getRandomColor(),
+                            x: this.getBubbleX(0, col),
+                            y: this.getBubbleY(0),
+                            row: 0,
+                            col: col,
+                            falling: false
+                        };
+                    }
+                }
+            }
+
+            gameOver() {
+                this.gameRunning = false;
+                
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('bubbleShooterHighScore', this.highScore.toString());
+                }
+                
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('finalHighScore').textContent = this.highScore;
+                document.getElementById('gameOver').style.display = 'block';
+                
+                this.sounds.background.pause();
+            }
+
+            restart() {
+                this.gameRunning = true;
+                this.score = 0;
+                document.getElementById('gameOver').style.display = 'none';
+                
+                this.initializeGame();
+                this.updateUI();
+                
+                if (this.musicEnabled) {
+                    this.sounds.background.play().catch(() => {});
+                }
+            }
+
+            toggleMusic() {
+                this.musicEnabled = !this.musicEnabled;
+                const btn = document.getElementById('musicBtn');
+                
+                if (this.musicEnabled) {
+                    btn.textContent = '🎵';
+                    this.sounds.background.play().catch(() => {});
+                } else {
+                    btn.textContent = '🔇';
+                    this.sounds.background.pause();
+                }
+            }
+
+            playSound(soundName) {
+                if (this.sounds[soundName] && this.musicEnabled) {
+                    this.sounds[soundName].currentTime = 0;
+                    this.sounds[soundName].play().catch(() => {});
+                }
+            }
+
+            updateUI() {
+                this.typeWriterUpdate('score', this.score.toString());
+                document.getElementById('highScore').textContent = this.highScore;
+                
+                // Add score update animation
+                const scoreElement = document.querySelector('.score-display');
+                scoreElement.classList.add('score-update');
+                setTimeout(() => scoreElement.classList.remove('score-update'), 600);
+            }
+
+            typeWriterUpdate(elementId, newText) {
+                const element = document.getElementById(elementId);
+                const currentText = element.textContent;
+                
+                if (currentText === newText) return;
+                
+                let i = 0;
+                element.textContent = '';
+                
+                const typeInterval = setInterval(() => {
+                    if (i < newText.length) {
+                        element.textContent += newText.charAt(i);
+                        i++;
+                    } else {
+                        clearInterval(typeInterval);
+                    }
+                }, 50 + Math.random() * 50); // Random typing speed for human-like effect
+            }
+
+            showTypedMessage(text, elementId, callback) {
+                const element = document.getElementById(elementId);
+                element.textContent = '';
+                let i = 0;
+                
+                const typeInterval = setInterval(() => {
+                    if (i < text.length) {
+                        element.textContent += text.charAt(i);
+                        i++;
+                        
+                        // Add random pauses for more human-like typing
+                        if (Math.random() < 0.1) {
+                            clearInterval(typeInterval);
+                            setTimeout(() => {
+                                this.continueTyping(text, i, element, callback);
+                            }, 100 + Math.random() * 200);
+                            return;
+                        }
+                    } else {
+                        clearInterval(typeInterval);
+                        if (callback) callback();
+                    }
+                }, 30 + Math.random() * 70);
+            }
+
+            continueTyping(text, startIndex, element, callback) {
+                let i = startIndex;
+                const typeInterval = setInterval(() => {
+                    if (i < text.length) {
+                        element.textContent += text.charAt(i);
+                        i++;
+                    } else {
+                        clearInterval(typeInterval);
+                        if (callback) callback();
+                    }
+                }, 30 + Math.random() * 70);
+            }
+
+            showPointsMessage(text, x, y) {
+                const pointsEl = document.createElement('div');
+                pointsEl.style.cssText = `
+                    position: absolute;
+                    left: ${x}px;
+                    top: ${y}px;
+                    transform: translate(-50%, -50%);
+                    background: linear-gradient(45deg, #FFD700, #FFA500);
+                    color: white;
+                    padding: 8px 15px;
+                    border-radius: 20px;
+                    font-weight: bold;
+                    font-size: 16px;
+                    z-index: 60;
+                    box-shadow: 0 2px 10px rgba(255,215,0,0.5);
+                    pointer-events: none;
+                `;
+                
+                this.canvas.parentElement.appendChild(pointsEl);
+                
+                // Type out the points with bouncy animation
+                let i = 0;
+                const typeInterval = setInterval(() => {
+                    if (i < text.length) {
+                        pointsEl.textContent += text.charAt(i);
+                        pointsEl.style.transform = `translate(-50%, -50%) scale(${1 + Math.sin(i * 0.5) * 0.1})`;
+                        i++;
+                    } else {
+                        clearInterval(typeInterval);
+                        
+                        // Animate upward and fade out
+                        pointsEl.style.transition = 'all 1.5s ease-out';
+                        pointsEl.style.transform = 'translate(-50%, -150%) scale(0.8)';
+                        pointsEl.style.opacity = '0';
+                        
+                        setTimeout(() => pointsEl.remove(), 1500);
+                    }
+                }, 40 + Math.random() * 30);
+            }
+
+            updateNextBubbleDisplay() {
+                const nextBubbleElement = document.getElementById('nextBubble');
+                nextBubbleElement.style.background = this.nextBubbleColor;
+            }
+
+            draw() {
+                // Clear canvas
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw trajectory
+                if (this.trajectory.length > 0 && !this.shootingBubble) {
+                    this.drawTrajectory();
+                }
+                
+                // Draw grid bubbles
+                this.drawGrid();
+                
+                // Draw shooting bubble
+                if (this.shootingBubble) {
+                    this.drawBubble(this.shootingBubble.x, this.shootingBubble.y, this.shootingBubble.color);
+                }
+                
+                // Draw shooter
+                this.drawShooter();
+            }
+
+            drawTrajectory() {
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                this.ctx.lineWidth = 2;
+                this.ctx.setLineDash([5, 5]);
+                this.ctx.beginPath();
+                
+                for (let i = 0; i < this.trajectory.length - 1; i++) {
+                    const point = this.trajectory[i];
+                    if (i === 0) {
+                        this.ctx.moveTo(point.x, point.y);
+                    } else {
+                        this.ctx.lineTo(point.x, point.y);
+                    }
+                }
+                
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+            }
+
+            drawGrid() {
+                for (let row = 0; row < this.grid.length; row++) {
+                    if (!this.grid[row]) continue;
+                    
+                    for (let col = 0; col < this.grid[row].length; col++) {
+                        const bubble = this.grid[row][col];
+                        if (bubble) {
+                            let x = bubble.x;
+                            let y = bubble.y;
+                            
+                            // Apply falling animation
+                            if (bubble.falling) {
+                                const fallTime = Date.now() % 1000;
+                                y += (fallTime / 1000) * 200;
+                            }
+                            
+                            this.drawBubble(x, y, bubble.color, bubble.falling ? 0.7 : 1);
+                        }
+                    }
+                }
+            }
+
+            drawShooter() {
+                // Draw shooter base
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                this.ctx.beginPath();
+                this.ctx.arc(this.shooterX, this.shooterY, BUBBLE_RADIUS + 5, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Draw current bubble
+                this.drawBubble(this.shooterX, this.shooterY, this.currentBubbleColor);
+            }
+
+            drawBubble(x, y, color, alpha = 1) {
+                this.ctx.globalAlpha = alpha;
+                
+                // Draw bubble shadow
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                this.ctx.beginPath();
+                this.ctx.arc(x + 2, y + 2, BUBBLE_RADIUS, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Draw bubble
+                this.ctx.fillStyle = color;
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, BUBBLE_RADIUS, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Draw highlight
+                const gradient = this.ctx.createRadialGradient(
+                    x - BUBBLE_RADIUS * 0.3, y - BUBBLE_RADIUS * 0.3, 0,
+                    x, y, BUBBLE_RADIUS
+                );
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                
+                this.ctx.fillStyle = gradient;
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, BUBBLE_RADIUS, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Draw border
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, BUBBLE_RADIUS, 0, Math.PI * 2);
+                this.ctx.stroke();
+                
+                this.ctx.globalAlpha = 1;
+            }
+
+            gameLoop() {
+                if (this.gameRunning) {
+                    this.updateShootingBubble();
+                    this.checkGameOver();
+                }
+                
+                this.draw();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+
+        // Initialize game when page loads
+        let game;
+        window.addEventListener('load', () => {
+            game = new BubbleShooter();
+        });
+
+        // Make restart function globally accessible
+        window.game = {
+            restart: () => game && game.restart()
+        };
+    </script>
+</body>
+</html>
